@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle de Estoque Farmácia UBS - Entradas, Saídas e Histórico</title>
     <style>
-        /* Estilos CSS (Melhorias de layout) */
+        /* Estilos CSS (Mantidos e Aprimorados) */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -49,7 +49,7 @@
             margin-bottom: 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
-            box-sizing: border-box; /* Garante que padding e border não aumentem a largura total */
+            box-sizing: border-box; 
         }
         .card button {
             background-color: #007bff;
@@ -61,7 +61,29 @@
         .card button:hover {
             background-color: #0056b3;
         }
-        /* Tabela de Estoque */
+        /* Seção de Relatórios */
+        .relatorio-container {
+            text-align: center;
+            padding: 20px;
+            margin-bottom: 30px;
+            border: 1px solid #007bff;
+            border-radius: 6px;
+            background-color: #f0f8ff;
+        }
+        .relatorio-container button {
+            background-color: #28a745; /* Verde para exportação */
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 0 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .relatorio-container button:hover {
+            background-color: #1e7e34;
+        }
+        /* Tabela de Estoque e Histórico */
         .tabela-wrapper {
             overflow-x: auto;
         }
@@ -81,13 +103,13 @@
             color: white;
         }
         .baixo-estoque {
-            background-color: #ffcccc !important; /* Alerta Vermelho */
+            background-color: #ffcccc !important; 
         }
         .entrada-row {
-            background-color: #d4edda; /* Verde Claro */
+            background-color: #d4edda; 
         }
         .saida-row {
-            background-color: #f8d7da; /* Vermelho Claro */
+            background-color: #f8d7da; 
         }
     </style>
 </head>
@@ -116,7 +138,14 @@
             <button onclick="registrarSaida()">Registrar Saída</button>
         </div>
     </div>
-
+    
+    <div class="relatorio-container">
+        <h2>Exportar Relatórios (CSV/Excel)</h2>
+        <p>Clique para gerar e baixar planilhas do seu estoque e histórico atual.</p>
+        <button onclick="exportarParaCSV('estoque')">Exportar Estoque Atual</button>
+        <button onclick="exportarParaCSV('historico')">Exportar Histórico de Transações</button>
+        <button onclick="exportarParaCSV('a-vencer')">Exportar Itens com Validade Próxima</button>
+    </div>
     <h2>Estoque Atual</h2>
     <div class="tabela-wrapper">
         <table id="tabela-estoque">
@@ -153,67 +182,56 @@
 
 <script>
     // --- Estrutura de Dados ---
-    
-    // Armazena o estoque atual de cada item
     let estoque = {
         "Dipirona 500mg": { quantidade: 150, validade: "2026-10-01" },
         "Amoxicilina 500mg": { quantidade: 30, validade: "2025-05-15" },
         "Metformina 850mg": { quantidade: 10, validade: "2024-12-30" },
     };
 
-    // Armazena o histórico de todas as movimentações
     let historico = [
         { data: new Date(), tipo: 'Entrada', nome: 'Dipirona 500mg', quantidade: 150, detalhe: 'Estoque Inicial' },
         { data: new Date(Date.now() - 3600000), tipo: 'Saída', nome: 'Amoxicilina 500mg', quantidade: 5, detalhe: 'Paciente Maria S.' },
     ];
     
     const LIMITE_BAIXO_ESTOQUE = 50;
+    const DIAS_PARA_AVENCER = 90; // Define 90 dias (3 meses) como "próximo de vencer"
 
-
-    // --- Funções de Renderização e Atualização ---
-
-    /**
-     * Atualiza a tabela de estoque.
+    // --- Funções de Renderização e Transação (Omitidas para brevidade, são as mesmas do exemplo anterior) ---
+    // ... (Coloque aqui as funções renderizarEstoque, atualizarSelectSaida, renderizarHistorico, registrarEntrada, registrarSaida) ...
+    
+    /* * As funções de renderização e transação (registrarEntrada, registrarSaida, etc.)
+     * devem ser mantidas exatamente como no código do sistema anterior, 
+     * pois elas manipulam as variáveis 'estoque' e 'historico'.
+     * Para a resposta, vou incluir a nova função de exportação.
      */
+    
+    // --- Funções de Renderização e Atualização (Incluídas para funcionar como um único arquivo) ---
+    
     function renderizarEstoque() {
         const tabelaCorpo = document.querySelector('#tabela-estoque tbody');
         tabelaCorpo.innerHTML = ''; 
-
-        // Transforma o objeto 'estoque' em um array para facilitar a iteração e ordenação
         const itensEstoque = Object.keys(estoque).map(nome => ({
             nome: nome,
             ...estoque[nome]
         }));
-
-        // Ordena por nome
         itensEstoque.sort((a, b) => a.nome.localeCompare(b.nome));
 
         itensEstoque.forEach(item => {
             const linha = tabelaCorpo.insertRow();
-            
             if (item.quantidade <= LIMITE_BAIXO_ESTOQUE) {
                 linha.classList.add('baixo-estoque');
             }
-
             linha.insertCell().textContent = item.nome;
             linha.insertCell().textContent = item.quantidade;
-            
-            // Formata a data de validade para DD/MM/AAAA
             const dataValidade = new Date(item.validade + 'T00:00:00');
             linha.insertCell().textContent = dataValidade.toLocaleDateString('pt-BR');
         });
-        
         atualizarSelectSaida(itensEstoque);
     }
     
-    /**
-     * Atualiza o campo SELECT com os nomes dos medicamentos em estoque para a Saída.
-     */
     function atualizarSelectSaida(itensEstoque) {
         const select = document.getElementById('saida-medicamento');
-        select.innerHTML = '<option value="">-- Selecione o Medicamento --</option>'; // Reset
-        
-        // Adiciona apenas itens com quantidade > 0
+        select.innerHTML = '<option value="">-- Selecione o Medicamento --</option>'; 
         itensEstoque
             .filter(item => item.quantidade > 0)
             .forEach(item => {
@@ -224,44 +242,22 @@
             });
     }
 
-    /**
-     * Atualiza a tabela de histórico.
-     */
     function renderizarHistorico() {
         const tabelaCorpo = document.querySelector('#tabela-historico tbody');
         tabelaCorpo.innerHTML = '';
-        
-        // Inverte o array para mostrar os mais recentes primeiro
         const historicoRecente = [...historico].reverse(); 
 
         historicoRecente.forEach(item => {
             const linha = tabelaCorpo.insertRow();
-            
-            // Define a cor de fundo
             linha.classList.add(item.tipo === 'Entrada' ? 'entrada-row' : 'saida-row');
-
-            // Célula Data/Hora
             linha.insertCell().textContent = item.data.toLocaleString('pt-BR');
-            
-            // Célula Tipo
             linha.insertCell().textContent = item.tipo;
-            
-            // Célula Medicamento
             linha.insertCell().textContent = item.nome;
-            
-            // Célula Quantidade
             linha.insertCell().textContent = item.quantidade;
-            
-            // Célula Detalhe
             linha.insertCell().textContent = item.detalhe;
         });
     }
 
-    // --- Funções de Transação ---
-
-    /**
-     * Registra a entrada (adição) de medicamento.
-     */
     function registrarEntrada() {
         const nome = document.getElementById('entrada-nome').value.trim();
         const quantidade = parseInt(document.getElementById('entrada-quantidade').value);
@@ -269,48 +265,33 @@
         const dataAtual = new Date();
 
         if (nome && !isNaN(quantidade) && quantidade > 0 && validade) {
-            
-            // 1. Atualizar o Estoque
             if (estoque[nome]) {
-                // Se o medicamento já existe, soma a quantidade
                 estoque[nome].quantidade += quantidade;
-                // E atualiza a validade (se for diferente ou mais recente)
                 if (validade > estoque[nome].validade) {
                      estoque[nome].validade = validade;
                 }
             } else {
-                // Se o medicamento é novo, adiciona
                 estoque[nome] = { quantidade: quantidade, validade: validade };
             }
 
-            // 2. Registrar no Histórico
             historico.push({
-                data: dataAtual,
-                tipo: 'Entrada',
-                nome: nome,
-                quantidade: quantidade,
+                data: dataAtual, tipo: 'Entrada', nome: nome, quantidade: quantidade,
                 detalhe: `Recebimento em ${validade.split('-').reverse().join('/')}`
             });
 
-            // 3. Atualizar a UI
             renderizarEstoque();
             renderizarHistorico();
-
-            // 4. Limpar Formulário
+            
             document.getElementById('entrada-nome').value = '';
             document.getElementById('entrada-quantidade').value = '';
             document.getElementById('entrada-validade').value = '';
             
             alert(`Entrada de ${quantidade}x ${nome} registrada com sucesso!`);
-
         } else {
             alert("Por favor, preencha todos os campos de Entrada corretamente.");
         }
     }
 
-    /**
-     * Registra a saída (dispensa) de medicamento.
-     */
     function registrarSaida() {
         const nome = document.getElementById('saida-medicamento').value;
         const quantidade = parseInt(document.getElementById('saida-quantidade').value);
@@ -324,39 +305,114 @@
                 return;
             }
             
-            // 1. Atualizar o Estoque
             estoque[nome].quantidade -= quantidade;
 
-            // 2. Registrar no Histórico
             historico.push({
-                data: dataAtual,
-                tipo: 'Saída',
-                nome: nome,
-                quantidade: quantidade,
+                data: dataAtual, tipo: 'Saída', nome: nome, quantidade: quantidade,
                 detalhe: `Dispensa para Paciente: ${paciente}`
             });
 
-            // 3. Atualizar a UI
             renderizarEstoque();
             renderizarHistorico();
 
-            // 4. Limpar Formulário
             document.getElementById('saida-quantidade').value = '';
             document.getElementById('saida-paciente').value = '';
             document.getElementById('saida-medicamento').value = '';
             
             alert(`Saída de ${quantidade}x ${nome} registrada para ${paciente}.`);
-
         } else {
             alert("Por favor, preencha todos os campos de Saída corretamente.");
         }
     }
-
-    // --- Inicialização ---
+    
+    // --- FUNÇÃO DE EXPORTAÇÃO PARA CSV (NOVIDADE) ---
 
     /**
-     * Inicializa a aplicação ao carregar a página.
+     * Converte um array de objetos para o formato CSV e inicia o download.
+     * @param {string} tipo - 'estoque', 'historico' ou 'a-vencer'
      */
+    function exportarParaCSV(tipo) {
+        let dados;
+        let nomeArquivo;
+
+        if (tipo === 'estoque') {
+            dados = Object.keys(estoque).map(nome => ({
+                Nome: nome,
+                "Qtd. em Estoque": estoque[nome].quantidade,
+                Validade: new Date(estoque[nome].validade + 'T00:00:00').toLocaleDateString('pt-BR')
+            }));
+            nomeArquivo = "estoque_atual";
+        } else if (tipo === 'historico') {
+            dados = historico.map(item => ({
+                "Data/Hora": item.data.toLocaleString('pt-BR'),
+                Tipo: item.tipo,
+                Medicamento: item.nome,
+                Quantidade: item.quantidade,
+                Detalhe: item.detalhe
+            }));
+            nomeArquivo = "historico_transacoes";
+        } else if (tipo === 'a-vencer') {
+            const hoje = new Date();
+            const limite = new Date();
+            limite.setDate(hoje.getDate() + DIAS_PARA_AVENCER);
+
+            const itensAberto = Object.keys(estoque).map(nome => ({
+                Nome: nome,
+                "Qtd. em Estoque": estoque[nome].quantidade,
+                Validade: new Date(estoque[nome].validade + 'T00:00:00')
+            }));
+            
+            dados = itensAberto
+                .filter(item => item.Validade <= limite)
+                .sort((a, b) => a.Validade - b.Validade)
+                .map(item => ({
+                    Nome: item.Nome,
+                    "Qtd. em Estoque": item["Qtd. em Estoque"],
+                    Validade: item.Validade.toLocaleDateString('pt-BR')
+                }));
+
+            nomeArquivo = "medicamentos_a_vencer";
+
+            if (dados.length === 0) {
+                alert("Nenhum medicamento encontrado para vencer nos próximos " + DIAS_PARA_AVENCER + " dias.");
+                return;
+            }
+        } else {
+            return;
+        }
+
+        // Se não houver dados
+        if (dados.length === 0) {
+            alert("Não há dados para exportar.");
+            return;
+        }
+
+        // 1. Extrair cabeçalhos (chaves dos objetos)
+        const headers = Object.keys(dados[0]);
+        
+        // 2. Formatar linhas
+        const csv = [
+            // Junta os cabeçalhos separados por vírgula
+            headers.join(';'),
+            // Mapeia cada objeto de dados para uma linha CSV
+            ...dados.map(row => headers.map(header => `"${row[header].toString().replace(/"/g, '""')}"`).join(';'))
+        ].join('\n'); // Junta tudo com quebra de linha
+
+        // 3. Criar e baixar o arquivo (Blob)
+        // O `\ufeff` (BOM) garante que caracteres especiais (como acentos) funcionem corretamente no Excel.
+        const blob = new Blob(['\ufeff', csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${nomeArquivo}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    // --- Inicialização ---
     window.onload = () => {
         renderizarEstoque();
         renderizarHistorico();
