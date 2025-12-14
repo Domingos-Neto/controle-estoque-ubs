@@ -3,73 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle de Estoque Farmácia UBS</title>
+    <title>Controle de Estoque Farmácia UBS - Entradas, Saídas e Histórico</title>
     <style>
-        /* Estilos CSS */
+        /* Estilos CSS (Melhorias de layout) */
         body {
             font-family: Arial, sans-serif;
-            margin: 20px;
+            margin: 0;
             background-color: #f4f7f6;
         }
         .container {
-            max-width: 1000px;
-            margin: auto;
+            max-width: 1200px;
+            margin: 20px auto;
             background: #fff;
             padding: 30px;
             border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
-        h1 {
+        h1, h2 {
             color: #007bff;
             text-align: center;
+            margin-bottom: 20px;
+        }
+        /* Layout de Colunas para Transações */
+        .transacao-container {
+            display: flex;
+            gap: 20px;
             margin-bottom: 30px;
         }
-        /* Formulário e Busca */
-        #form-adicionar, #busca {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            padding: 15px;
+        .card {
+            flex: 1;
+            padding: 20px;
             border: 1px solid #ddd;
-            border-radius: 4px;
+            border-radius: 6px;
             background-color: #e9ecef;
         }
-        #form-adicionar input, #form-adicionar select, #busca input {
-            padding: 8px;
+        .card h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+        }
+        .card input, .card select, .card button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
-            flex-grow: 1;
+            box-sizing: border-box; /* Garante que padding e border não aumentem a largura total */
         }
-        #form-adicionar button {
-            background-color: #28a745;
+        .card button {
+            background-color: #007bff;
             color: white;
             border: none;
-            padding: 8px 15px;
-            border-radius: 4px;
             cursor: pointer;
             transition: background-color 0.3s;
         }
-        #form-adicionar button:hover {
-            background-color: #218838;
+        .card button:hover {
+            background-color: #0056b3;
         }
-        /* Tabela */
-        #tabela-estoque {
+        /* Tabela de Estoque */
+        .tabela-wrapper {
+            overflow-x: auto;
+        }
+        #tabela-estoque, #tabela-historico {
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
         }
-        #tabela-estoque th, #tabela-estoque td {
+        #tabela-estoque th, #tabela-estoque td,
+        #tabela-historico th, #tabela-historico td {
             border: 1px solid #dee2e6;
             padding: 12px;
             text-align: left;
         }
-        #tabela-estoque th {
+        #tabela-estoque th, #tabela-historico th {
             background-color: #007bff;
             color: white;
-            cursor: pointer;
         }
         .baixo-estoque {
-            background-color: #ffcccc !important; /* Vermelho claro */
+            background-color: #ffcccc !important; /* Alerta Vermelho */
+        }
+        .entrada-row {
+            background-color: #d4edda; /* Verde Claro */
+        }
+        .saida-row {
+            background-color: #f8d7da; /* Vermelho Claro */
         }
     </style>
 </head>
@@ -78,144 +96,270 @@
 <div class="container">
     <h1>Controle de Estoque Farmácia UBS</h1>
 
-    <div id="form-adicionar">
-        <input type="text" id="nome" placeholder="Nome do Medicamento" required>
-        <input type="number" id="quantidade" placeholder="Qtd. em Estoque" required min="0">
-        <input type="date" id="validade" placeholder="Data de Validade" required>
-        <button onclick="adicionarMedicamento()">Adicionar</button>
+    <div class="transacao-container">
+        
+        <div class="card">
+            <h3>➕ Entrada de Medicamentos</h3>
+            <input type="text" id="entrada-nome" placeholder="Nome do Medicamento" required>
+            <input type="number" id="entrada-quantidade" placeholder="Quantidade Recebida" required min="1">
+            <input type="date" id="entrada-validade" title="Data de Validade" required>
+            <button onclick="registrarEntrada()">Registrar Entrada</button>
+        </div>
+
+        <div class="card">
+            <h3>➖ Saída (Dispensa)</h3>
+            <select id="saida-medicamento" required>
+                <option value="">-- Selecione o Medicamento --</option>
+            </select>
+            <input type="number" id="saida-quantidade" placeholder="Quantidade a Dispensar" required min="1">
+            <input type="text" id="saida-paciente" placeholder="Nome/Prontuário do Paciente" required>
+            <button onclick="registrarSaida()">Registrar Saída</button>
+        </div>
     </div>
 
-    <div id="busca">
-        <input type="text" id="termo-busca" placeholder="Buscar por Nome" onkeyup="filtrarEstoque()">
+    <h2>Estoque Atual</h2>
+    <div class="tabela-wrapper">
+        <table id="tabela-estoque">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Qtd. em Estoque</th>
+                    <th>Validade</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+    </div>
+    
+    <h2 style="margin-top: 40px;">Histórico de Transações</h2>
+    <div class="tabela-wrapper">
+        <table id="tabela-historico">
+            <thead>
+                <tr>
+                    <th>Data/Hora</th>
+                    <th>Tipo</th>
+                    <th>Medicamento</th>
+                    <th>Quantidade</th>
+                    <th>Detalhe</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
     </div>
 
-    <table id="tabela-estoque">
-        <thead>
-            <tr>
-                <th onclick="ordenarTabela(0)">Nome</th>
-                <th onclick="ordenarTabela(1)">Qtd. em Estoque</th>
-                <th onclick="ordenarTabela(2)">Validade</th>
-            </tr>
-        </thead>
-        <tbody>
-            </tbody>
-    </table>
 </div>
 
 <script>
-    // Armazenamento inicial de dados (simulado)
-    let estoque = [
-        { nome: "Dipirona 500mg", quantidade: 150, validade: "2026-10-01" },
-        { nome: "Amoxicilina 500mg", quantidade: 30, validade: "2025-05-15" },
-        { nome: "Metformina 850mg", quantidade: 10, validade: "2024-12-30" },
-        { nome: "AAS Infantil", quantidade: 250, validade: "2026-01-20" },
-    ];
+    // --- Estrutura de Dados ---
+    
+    // Armazena o estoque atual de cada item
+    let estoque = {
+        "Dipirona 500mg": { quantidade: 150, validade: "2026-10-01" },
+        "Amoxicilina 500mg": { quantidade: 30, validade: "2025-05-15" },
+        "Metformina 850mg": { quantidade: 10, validade: "2024-12-30" },
+    };
 
-    // Limite de estoque (para alerta visual)
+    // Armazena o histórico de todas as movimentações
+    let historico = [
+        { data: new Date(), tipo: 'Entrada', nome: 'Dipirona 500mg', quantidade: 150, detalhe: 'Estoque Inicial' },
+        { data: new Date(Date.now() - 3600000), tipo: 'Saída', nome: 'Amoxicilina 500mg', quantidade: 5, detalhe: 'Paciente Maria S.' },
+    ];
+    
     const LIMITE_BAIXO_ESTOQUE = 50;
 
-    /**
-     * Função para renderizar a tabela com base no array 'estoque'.
-     * @param {Array} dados - O array de objetos de medicamento a ser exibido.
-     */
-    function renderizarEstoque(dados) {
-        const tabelaCorpo = document.querySelector('#tabela-estoque tbody');
-        tabelaCorpo.innerHTML = ''; // Limpa o corpo da tabela
 
-        dados.forEach(item => {
+    // --- Funções de Renderização e Atualização ---
+
+    /**
+     * Atualiza a tabela de estoque.
+     */
+    function renderizarEstoque() {
+        const tabelaCorpo = document.querySelector('#tabela-estoque tbody');
+        tabelaCorpo.innerHTML = ''; 
+
+        // Transforma o objeto 'estoque' em um array para facilitar a iteração e ordenação
+        const itensEstoque = Object.keys(estoque).map(nome => ({
+            nome: nome,
+            ...estoque[nome]
+        }));
+
+        // Ordena por nome
+        itensEstoque.sort((a, b) => a.nome.localeCompare(b.nome));
+
+        itensEstoque.forEach(item => {
             const linha = tabelaCorpo.insertRow();
             
-            // Verifica o estoque baixo
             if (item.quantidade <= LIMITE_BAIXO_ESTOQUE) {
                 linha.classList.add('baixo-estoque');
             }
 
-            // Célula Nome
+            linha.insertCell().textContent = item.nome;
+            linha.insertCell().textContent = item.quantidade;
+            
+            // Formata a data de validade para DD/MM/AAAA
+            const dataValidade = new Date(item.validade + 'T00:00:00');
+            linha.insertCell().textContent = dataValidade.toLocaleDateString('pt-BR');
+        });
+        
+        atualizarSelectSaida(itensEstoque);
+    }
+    
+    /**
+     * Atualiza o campo SELECT com os nomes dos medicamentos em estoque para a Saída.
+     */
+    function atualizarSelectSaida(itensEstoque) {
+        const select = document.getElementById('saida-medicamento');
+        select.innerHTML = '<option value="">-- Selecione o Medicamento --</option>'; // Reset
+        
+        // Adiciona apenas itens com quantidade > 0
+        itensEstoque
+            .filter(item => item.quantidade > 0)
+            .forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.nome;
+                option.textContent = `${item.nome} (${item.quantidade} em estoque)`;
+                select.appendChild(option);
+            });
+    }
+
+    /**
+     * Atualiza a tabela de histórico.
+     */
+    function renderizarHistorico() {
+        const tabelaCorpo = document.querySelector('#tabela-historico tbody');
+        tabelaCorpo.innerHTML = '';
+        
+        // Inverte o array para mostrar os mais recentes primeiro
+        const historicoRecente = [...historico].reverse(); 
+
+        historicoRecente.forEach(item => {
+            const linha = tabelaCorpo.insertRow();
+            
+            // Define a cor de fundo
+            linha.classList.add(item.tipo === 'Entrada' ? 'entrada-row' : 'saida-row');
+
+            // Célula Data/Hora
+            linha.insertCell().textContent = item.data.toLocaleString('pt-BR');
+            
+            // Célula Tipo
+            linha.insertCell().textContent = item.tipo;
+            
+            // Célula Medicamento
             linha.insertCell().textContent = item.nome;
             
             // Célula Quantidade
             linha.insertCell().textContent = item.quantidade;
-
-            // Célula Validade (formata para DD/MM/AAAA)
-            const dataValidade = new Date(item.validade + 'T00:00:00'); // Adiciona T00:00:00 para evitar problemas de fuso horário
-            linha.insertCell().textContent = dataValidade.toLocaleDateString('pt-BR');
+            
+            // Célula Detalhe
+            linha.insertCell().textContent = item.detalhe;
         });
     }
 
-    /**
-     * Adiciona um novo medicamento ao array 'estoque'.
-     */
-    function adicionarMedicamento() {
-        const nome = document.getElementById('nome').value.trim();
-        const quantidade = parseInt(document.getElementById('quantidade').value);
-        const validade = document.getElementById('validade').value;
+    // --- Funções de Transação ---
 
-        if (nome && !isNaN(quantidade) && quantidade >= 0 && validade) {
-            estoque.push({ 
-                nome: nome, 
-                quantidade: quantidade, 
-                validade: validade 
+    /**
+     * Registra a entrada (adição) de medicamento.
+     */
+    function registrarEntrada() {
+        const nome = document.getElementById('entrada-nome').value.trim();
+        const quantidade = parseInt(document.getElementById('entrada-quantidade').value);
+        const validade = document.getElementById('entrada-validade').value;
+        const dataAtual = new Date();
+
+        if (nome && !isNaN(quantidade) && quantidade > 0 && validade) {
+            
+            // 1. Atualizar o Estoque
+            if (estoque[nome]) {
+                // Se o medicamento já existe, soma a quantidade
+                estoque[nome].quantidade += quantidade;
+                // E atualiza a validade (se for diferente ou mais recente)
+                if (validade > estoque[nome].validade) {
+                     estoque[nome].validade = validade;
+                }
+            } else {
+                // Se o medicamento é novo, adiciona
+                estoque[nome] = { quantidade: quantidade, validade: validade };
+            }
+
+            // 2. Registrar no Histórico
+            historico.push({
+                data: dataAtual,
+                tipo: 'Entrada',
+                nome: nome,
+                quantidade: quantidade,
+                detalhe: `Recebimento em ${validade.split('-').reverse().join('/')}`
             });
+
+            // 3. Atualizar a UI
+            renderizarEstoque();
+            renderizarHistorico();
+
+            // 4. Limpar Formulário
+            document.getElementById('entrada-nome').value = '';
+            document.getElementById('entrada-quantidade').value = '';
+            document.getElementById('entrada-validade').value = '';
             
-            // Limpa o formulário e atualiza a tabela
-            document.getElementById('nome').value = '';
-            document.getElementById('quantidade').value = '';
-            document.getElementById('validade').value = '';
-            
-            renderizarEstoque(estoque);
+            alert(`Entrada de ${quantidade}x ${nome} registrada com sucesso!`);
+
         } else {
-            alert("Por favor, preencha todos os campos corretamente.");
+            alert("Por favor, preencha todos os campos de Entrada corretamente.");
         }
     }
 
     /**
-     * Filtra o estoque pelo nome do medicamento.
+     * Registra a saída (dispensa) de medicamento.
      */
-    function filtrarEstoque() {
-        const termo = document.getElementById('termo-busca').value.toLowerCase().trim();
-        
-        const resultados = estoque.filter(item => 
-            item.nome.toLowerCase().includes(termo)
-        );
+    function registrarSaida() {
+        const nome = document.getElementById('saida-medicamento').value;
+        const quantidade = parseInt(document.getElementById('saida-quantidade').value);
+        const paciente = document.getElementById('saida-paciente').value.trim();
+        const dataAtual = new Date();
 
-        renderizarEstoque(resultados);
+        if (nome && !isNaN(quantidade) && quantidade > 0 && paciente) {
+            
+            if (!estoque[nome] || estoque[nome].quantidade < quantidade) {
+                alert(`Erro: Quantidade insuficiente! Apenas ${estoque[nome] ? estoque[nome].quantidade : 0} unidades de ${nome} em estoque.`);
+                return;
+            }
+            
+            // 1. Atualizar o Estoque
+            estoque[nome].quantidade -= quantidade;
+
+            // 2. Registrar no Histórico
+            historico.push({
+                data: dataAtual,
+                tipo: 'Saída',
+                nome: nome,
+                quantidade: quantidade,
+                detalhe: `Dispensa para Paciente: ${paciente}`
+            });
+
+            // 3. Atualizar a UI
+            renderizarEstoque();
+            renderizarHistorico();
+
+            // 4. Limpar Formulário
+            document.getElementById('saida-quantidade').value = '';
+            document.getElementById('saida-paciente').value = '';
+            document.getElementById('saida-medicamento').value = '';
+            
+            alert(`Saída de ${quantidade}x ${nome} registrada para ${paciente}.`);
+
+        } else {
+            alert("Por favor, preencha todos os campos de Saída corretamente.");
+        }
     }
+
+    // --- Inicialização ---
 
     /**
-     * Ordena a tabela clicando no cabeçalho.
-     * @param {number} n - Índice da coluna (0: Nome, 1: Qtd, 2: Validade).
+     * Inicializa a aplicação ao carregar a página.
      */
-    let direcao = [false, false, false]; // true para ascendente, false para descendente
-
-    function ordenarTabela(n) {
-        const coluna = ['nome', 'quantidade', 'validade'][n];
-        
-        estoque.sort((a, b) => {
-            let valA = a[coluna];
-            let valB = b[coluna];
-
-            // Trata a Validade como data e Quantidade como número
-            if (n === 1) { // Quantidade
-                valA = parseInt(valA);
-                valB = parseInt(valB);
-            } else if (n === 2) { // Validade
-                // Comparação de strings de data (AAAA-MM-DD) funciona bem para ordenação
-                // valA = new Date(valA);
-                // valB = new Date(valB);
-            }
-
-            if (valA < valB) return direcao[n] ? -1 : 1;
-            if (valA > valB) return direcao[n] ? 1 : -1;
-            return 0; // Iguais
-        });
-
-        direcao[n] = !direcao[n]; // Inverte a direção para o próximo clique
-        renderizarEstoque(estoque);
-    }
-
-    // Renderiza o estoque inicial ao carregar a página
     window.onload = () => {
-        renderizarEstoque(estoque);
+        renderizarEstoque();
+        renderizarHistorico();
     };
 </script>
 
